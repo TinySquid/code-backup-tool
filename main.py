@@ -162,66 +162,66 @@ def build_backup_dest_paths(config: list, src_paths: list) -> list:
     return dest_paths
 
 
-def backup_files(config: list, src_paths: list, dest_paths: list):
+def backup_files(config: list, src_paths: list, dest_paths: list) -> list:
     """
     Backs up files from backup_src to backup_dest, creating
     directories and intermediate directiories as needed. If 
     a file already exists in backup_dest, then it will be 
-    overwritten based on modified date.
+    overwritten based on modified date. Returns list of files
+    copied over.
     """
+
+    files_backed_up = []
+
     for i, full_path in enumerate(dest_paths):
-        print(f"{i}: {full_path} | {src_paths[i]}")
-    # if os.path.exists(os.path.dirname(full_path)):
-    #     # Path exists, but does the file?
-    #     if os.path.exists(full_path):
-    #         # Overwrite file if newer than backup
-    #         pass
-    #     else:
-    #         # Path exists, but file doesn't. Copy over file
-    #         pass
-    # else:
-    #     # Path doesn't exist, so neither does the file. Create dirs and copy over file
-    #     path = os.path.dirname(full_path)
+        if os.path.exists(os.path.dirname(full_path)):
+            # Path exists, but does the file?
+            if os.path.exists(full_path):
+                # * Overwrite file if newer than backup
+                dest_mod_time = os.path.getmtime(full_path)
+                src_mod_time = os.path.getmtime(src_paths[i])
 
-    #     try:
-    #         os.makedirs(path)
-    #     except FileExistsError:
-    #         print("Path already exists")
+                if dest_mod_time < src_mod_time:
+                    # Backup-src file is newer
+                    shutil.copy2(src_paths[i], full_path)
+                    files_backed_up.append(full_path)
+            else:
+                # * Path exists, but file doesn't. Copy over file
+                shutil.copy2(src_paths[i], full_path)
+                files_backed_up.append(full_path)
+        else:
+            # * Path doesn't exist, so neither does the file. Create dirs and copy over file
+            path = os.path.dirname(full_path)
 
-    #     # Copy over file
-    #     shutil.copy2()
+            try:
+                os.makedirs(path)
+            except FileExistsError:
+                print("Path already exists")
 
-    # if os.path.exists(path):
-    #     # File already exists, check modified date and overwrite if newer
-    # else:
-    #     # Either the path doesn't exist (dirs) or the file doesn't exist
-    #     if os.path.exists(os.path.dirname(path)):
-    #         #* Path exits
-    #     else:
-    #         # Path doesn't exist, and therfore neither does the file
-    #     pass
-    # else:
-    #     # File doesn't exist, copy over and build dir + intermediate dirs if needed
-    #     # Extract path
+            # Copy over file
+            shutil.copy2(src_paths[i], full_path)
+            files_backed_up.append(full_path)
+
+    return files_backed_up
 
 
 # Parse args and return loaded config
 config = parse_args(sys.argv)
 
+print("Running with config:\n")
+for key in config:
+    print(f"{key}: {config[key]}")
+print("")
+
 src_paths = build_backup_src_paths(config)
 
 dest_paths = build_backup_dest_paths(config, src_paths)
 
-backup_files(config, src_paths, dest_paths)
+print("Beginning backup...")
 
-# # Pull config into vars
-# backup_from_folder = config["backup-from-folder"]
-# backup_to_folder = config["backup-to-folder"]
-# folder_exclusions = config["folder-exclusions"]
-# filetype_exclusions = config["filetype-exclusions"]
-# filename_exclusions = config["filename-exclusions"]
+backed_up_files = backup_files(config, src_paths, dest_paths)
 
-# # Bools to toggle exclusion functionality
-# enable_folder_exclusions = True if len(folder_exclusions) > 0 else False
-# enable_filename_exclusions = True if len(filename_exclusions) > 0 else False
-# enable_filetype_exclusions = True if len(filetype_exclusions) > 0 else False
+print("Backup complete!\n")
+print(
+    f"Files in {config['backup-src']}: {len(src_paths)}\nFiles actually copied over: {len(backed_up_files)}"
+)
