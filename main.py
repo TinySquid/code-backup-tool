@@ -36,6 +36,8 @@ import sys  # For args
 import shutil  # For file copy / overwrite / metadata
 import json  # For parsing config
 
+# TODO - Allow for full commandline only operation as a second option (instead of loading from a config file)
+
 
 def print_usage(error_message=None):
     """
@@ -95,7 +97,7 @@ def parse_args(args: list) -> list:
 
 def build_backup_src_paths(config: list) -> list:
     """
-    Returns a list of full paths from the backup-src directory and its subdirectories
+    Returns a list of filtered full paths from the backup-src directory and its subdirectories
     """
 
     # Backup from path
@@ -111,7 +113,7 @@ def build_backup_src_paths(config: list) -> list:
     enable_filetype_exclusions = True if len(filetype_exclusions) > 0 else False
 
     # List object to hold full paths that meet criteria above
-    paths = []
+    src_paths = []
 
     # Traverse all files and folders that pass the exclusion checks
     for path, subdirs, files in os.walk(backup_src_path, topdown=True):
@@ -127,28 +129,48 @@ def build_backup_src_paths(config: list) -> list:
             if enable_filename_exclusions and file not in filename_exclusions:
                 # * Filter by filename & filetype
                 if enable_filetype_exclusions and file_type not in filetype_exclusions:
-                    paths.append(os.path.join(path, file))
+                    src_paths.append(os.path.join(path, file))
                 else:
                     # * Filter by just filename
-                    paths.append(os.path.join(path, file))
+                    src_paths.append(os.path.join(path, file))
             elif enable_filetype_exclusions and file_type not in filetype_exclusions:
                 # * Filter by just filetype
-                paths.append(os.path.join(path, file))
+                src_paths.append(os.path.join(path, file))
             else:
                 # * No filters besides folder name
-                paths.append(os.path.join(path, file))
+                src_paths.append(os.path.join(path, file))
 
-    return paths
+    return src_paths
 
 
-# TODO - Allow for full commandline only operation as a second option (instead of loading from a config file)
+def build_backup_dest_paths(config: list, src_paths: list) -> list:
+    """
+    Returns a list of full paths with parent dir switched 
+    from backup_src to backup_dest
+    """
+
+    backup_src_path = config["backup-src"]
+    backup_dest_path = config["backup-dest"]
+
+    dest_paths = []
+
+    for path in src_paths:
+        dest_paths.append(
+            os.path.join(backup_dest_path, os.path.relpath(path, backup_src_path))
+        )
+
+    return dest_paths
+
 
 # Parse args and return loaded config
 config = parse_args(sys.argv)
 
 src_paths = build_backup_src_paths(config)
 
-print(src_paths)
+dest_paths = build_backup_dest_paths(config, src_paths)
+
+print(len(src_paths))
+print(len(dest_paths))
 
 # # Pull config into vars
 # backup_from_folder = config["backup-from-folder"]
