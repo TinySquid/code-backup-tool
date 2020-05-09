@@ -1,34 +1,8 @@
 """
-  Problem:
-    Using google drive to backup my /dev folder (with all my projects and stuff), 
-    I can't backup everything because some projects have the dreaded node_modules dir
-    inside them... 
+Running this is simple:
+usage: python backup.py [config.json]
 
-    I want to have a utility script that will go through and backup everything - minus the node_modules
-    folder. In the future it would be nice to load up a config from a text file for folder/file name exclusions
-    instead of just node_modules.
-
-  How will I solve this?
-  1. Set Google Drive to backup a specific main folder like "backup"
-  2. Have this script load up an exclusion config and then recursively
-     go into and copy files / folders into the main backup folder, minus
-     the excluded folders / files specified in the config
-  
-  Future features...
-  - Check if folder / file already exists in backup, and if so, only
-    overwrite if backup dir has an older (modified date/time?) version
-  - Turn into a service that runs on startup?
-
-  Process:
-    Load config file from args, parse exclusion names (files/folders)
-    parse the root dir to backup FROM and dir to backup TO
-
-    Commence the backup process by recursively going through dirs,
-    copying files over as necessary.
-
-    Path doesn't exist in backup folder -> create dirs + intermediate dirs and copy over file
-    Path exists but file doesn't -> Copy file over
-    Path and file exists -> Overwrite if older
+Obviously you need python.
 """
 
 import os  # For path stuff
@@ -112,7 +86,21 @@ def build_backup_src_paths(config: list) -> list:
     enable_filename_exclusions = True if len(filename_exclusions) > 0 else False
     enable_filetype_exclusions = True if len(filetype_exclusions) > 0 else False
 
-    # List object to hold full paths that meet criteria above
+    """
+    In order to not have a ton of if blocks for checking if files meet
+    options and criteria, setup a var to hold a unique number that corresponds
+    with the possible options. Then check if the file meets the criteria by
+    adding the unique number for each passing test and then checking against
+    the initial inclusion criteria variable
+    """
+    inclusion_criteria = 0
+
+    if enable_filename_exclusions > 0:
+        inclusion_criteria += 1
+    if enable_filetype_exclusions > 0:
+        inclusion_criteria += 2
+
+    # List object to hold full paths that meet inclusion_criteria above
     src_paths = []
 
     # Traverse all files and folders that pass the exclusion checks
@@ -123,21 +111,23 @@ def build_backup_src_paths(config: list) -> list:
 
         # Iterate over all files in this directory
         for file in files:
-            # File extension
-            file_type = os.path.splitext(file)[1]
+            # Get file name and extension for exclusion checking
+            [file_name, file_type] = os.path.splitext(file)
 
-            if enable_filename_exclusions and file not in filename_exclusions:
-                # * Filter by filename & filetype
-                if enable_filetype_exclusions and file_type not in filetype_exclusions:
-                    src_paths.append(os.path.join(path, file))
-                else:
-                    # * Filter by just filename
-                    src_paths.append(os.path.join(path, file))
-            elif enable_filetype_exclusions and file_type not in filetype_exclusions:
-                # * Filter by just filetype
-                src_paths.append(os.path.join(path, file))
-            else:
-                # * No filters besides folder name
+            checks_passed = 0
+
+            # * Filename filter
+            if enable_filename_exclusions:
+                if file_name not in filename_exclusions:
+                    checks_passed += 1
+
+            # * Filetype filter
+            if enable_filetype_exclusions:
+                if file_type not in filetype_exclusions:
+                    checks_passed += 2
+
+            # * Do we pass criteria defined in the config?
+            if checks_passed == inclusion_criteria:
                 src_paths.append(os.path.join(path, file))
 
     return src_paths
@@ -171,9 +161,18 @@ def backup_files(config: list, src_paths: list, dest_paths: list) -> list:
     copied over.
     """
 
+    # Progress tracker
+    percent_complete = 0
+    percent_step = 5
+
     files_backed_up = []
 
     for i, full_path in enumerate(dest_paths):
+        percent_complete = (i / len(src_paths)) * 100
+
+        if int(percent_complete) % percent_step == 0:
+            print(f"...Progress: {percent_complete}")
+
         if os.path.exists(os.path.dirname(full_path)):
             # Path exists, but does the file?
             if os.path.exists(full_path):
@@ -205,23 +204,22 @@ def backup_files(config: list, src_paths: list, dest_paths: list) -> list:
     return files_backed_up
 
 
-# Parse args and return loaded config
-config = parse_args(sys.argv)
+if __name__ == "__main__":
+    # Parse args and return loaded config
+    config = parse_args(sys.argv)
 
-print("Running with config:\n")
-for key in config:
-    print(f"{key}: {config[key]}")
-print("")
+    print("Running with config:\n")
+    for key in config:
+        print(f"{key}: {config[key]}")
+    print("")
 
-src_paths = build_backup_src_paths(config)
+    src_paths = build_backup_src_paths(config)
 
-dest_paths = build_backup_dest_paths(config, src_paths)
+    dest_paths = build_backup_dest_paths(config, src_paths)
 
-print("Beginning backup...")
+    print("Beginning backup...")
 
-backed_up_files = backup_files(config, src_paths, dest_paths)
+    backed_up_files = backup_files(config, src_paths, dest_paths)
 
-print("Backup complete!\n")
-print(
-    f"Files in {config['backup-src']}: {len(src_paths)}\nFiles actually copied over: {len(backed_up_files)}"
-)
+    print("Backup complete!\n")
+    print(f"Files backed up: {len(backed_up_files)}")
