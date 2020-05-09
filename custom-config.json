@@ -1,7 +1,0 @@
-{
-    "folder-exclusions": ["node_modules"],
-    "filename-exclusions": [],
-    "filetype-exclusions": [],
-    "backup-from-folder": "C:\\dev",
-    "backup-to-folder": "C:\\code-backup-tool\\drive-backup"
-}

@@ -1,9 +1,7 @@
 {
-	"folder-exclusions": [
-		"node_modules"
-	],
-	"filename-exclusions": [],
-	"filetype-exclusions": [".py"],
-	"backup-from-folder": "test-backup-from",
-	"backup-to-folder": "test-backup-to"
+    "folder-exclusions": ["node_modules", "__pycache__"],
+    "filename-exclusions": [],
+    "filetype-exclusions": [".log", ".lock"],
+    "backup-src": "C:\\dev",
+    "backup-dest": "C:\\code-backup-tool\\drive-backup"
 }
