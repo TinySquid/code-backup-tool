@@ -15,7 +15,8 @@ from time import time, sleep  # Getting operation time, sleep to reduce cpu usag
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 
-# TODO - Allow for full commandline only operation as a second option (instead of loading from a config file)
+# Global config object
+config = {}
 
 
 def print_usage(error_message=None):
@@ -36,7 +37,7 @@ def load_config(file: str) -> list:
     """
     Loads and parses a provided config file 
     """
-    config = {}
+    global config
 
     if os.path.exists(file):
         with open(file) as config_file:
@@ -46,8 +47,6 @@ def load_config(file: str) -> list:
                 config = json.load(config_file)
             except json.JSONDecodeError:
                 print_usage("Not a valid JSON file")
-
-            return config
     else:
         print_usage(f"Config file {file} does not exist.")
 
@@ -62,14 +61,14 @@ def parse_args(args: list) -> list:
 
     if args_len == 1:
         # Run with default config
-        return load_config(default_config_path)
+        load_config(default_config_path)
     elif args_len == 2:
         if args[1] == "help":
             # Run usage statement
             print_usage()
         else:
             # Run with provided config
-            return load_config(args[1])
+            load_config(args[1])
     else:
         print_usage("Invalid number of arguments provided")
 
@@ -157,7 +156,7 @@ def build_backup_dest_paths(config: list, src_paths: list) -> list:
     return dest_paths
 
 
-def backup_files(config: list, src_paths: list, dest_paths: list) -> list:
+def backup_files(config: list) -> list:
     """
     Backs up files from backup_src to backup_dest, creating
     directories and intermediate directiories as needed. If 
@@ -165,6 +164,9 @@ def backup_files(config: list, src_paths: list, dest_paths: list) -> list:
     overwritten based on modified date. Returns list of files
     copied over.
     """
+
+    src_paths = build_backup_src_paths(config)
+    dest_paths = build_backup_dest_paths(config, src_paths)
 
     # Progress tracker
     percent_complete = 0
@@ -216,8 +218,15 @@ def backup_files(config: list, src_paths: list, dest_paths: list) -> list:
     return files_backed_up
 
 
+# TODO Refactor
+# Replace / Modify / Delete only the files specified in the event
+# Instead of currently rebuilding all the backup paths
 def file_on_created(event):
     print(f"{event.src_path} created.")
+
+    global config
+
+    backup_files(config)
 
 
 def file_on_deleted(event):
@@ -226,6 +235,10 @@ def file_on_deleted(event):
 
 def file_on_modified(event):
     print(f"{event.src_path} modified.")
+
+    global config
+
+    backup_files(config)
 
 
 def file_on_moved(event):
@@ -255,22 +268,27 @@ def setup_filesystem_watchdog(path):
 
 if __name__ == "__main__":
     # Parse args and return loaded config
-    config = parse_args(sys.argv)
+    parse_args(sys.argv)
 
-    print("Running with config:\n")
-    for key in config:
-        print(f"{key}: {config[key]}")
-    print("")
+    # print("Running with config:\n")
+    # for key in config:
+    #     print(f"{key}: {config[key]}")
+    # print("")
 
     start_time = time()
 
-    src_paths = build_backup_src_paths(config)
+    print("Beginning initial backup...")
 
-    dest_paths = build_backup_dest_paths(config, src_paths)
-
-    print("Beginning backup...")
-
-    backed_up_files = backup_files(config, src_paths, dest_paths)
+    backed_up_files = backup_files(config)
 
     print(f"Backup completed in {round(time() - start_time, 6)} seconds.\n")
     print(f"Files backed up: {len(backed_up_files)}")
+
+    # Watch backup-src dir for changes
+    fs_observer = setup_filesystem_watchdog(config["backup-src"])
+
+    fs_observer.start()
+
+    # Check every n seconds
+    while True:
+        sleep(3)
