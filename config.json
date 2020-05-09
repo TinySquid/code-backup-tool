@@ -2,6 +2,6 @@
     "folder-exclusions": ["node_modules", "__pycache__"],
     "filename-exclusions": [],
     "filetype-exclusions": [".log", ".lock"],
-    "backup-src": "C:\\dev",
-    "backup-dest": "C:\\code-backup-tool\\drive-backup"
+    "backup-src": "test-backup-src",
+    "backup-dest": "test-backup-dest"
 }
