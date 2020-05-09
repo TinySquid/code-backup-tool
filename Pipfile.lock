@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "e2f6aed1dea3c8357737c37e79b67f878126aa024139fbaf8ad57602c0f347f8"
+            "sha256": "13fb877524cbc0f8a13aa5d6196b3a8af47923f94410a3a9046a71e6a22baa93"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -15,7 +15,21 @@
             }
         ]
     },
-    "default": {},
+    "default": {
+        "pathtools": {
+            "hashes": [
+                "sha256:7c35c5421a39bb82e58018febd90e3b6e5db34c5443aaaf742b3f33d4655f1c0"
+            ],
+            "version": "==0.1.2"
+        },
+        "watchdog": {
+            "hashes": [
+                "sha256:c560efb643faed5ef28784b2245cf8874f939569717a4a12826a173ac644456b"
+            ],
+            "index": "pypi",
+            "version": "==0.10.2"
+        }
+    },
     "develop": {
         "appdirs": {
             "hashes": [

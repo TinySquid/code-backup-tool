@@ -9,7 +9,11 @@ import os  # For path stuff
 import sys  # For args
 import shutil  # For file copy / overwrite / metadata
 import json  # For parsing config
-from time import time  # Getting operation time
+from time import time, sleep  # Getting operation time, sleep to reduce cpu usage
+
+# File system watchdog module
+from watchdog.observers import Observer
+from watchdog.events import PatternMatchingEventHandler
 
 # TODO - Allow for full commandline only operation as a second option (instead of loading from a config file)
 
@@ -210,6 +214,43 @@ def backup_files(config: list, src_paths: list, dest_paths: list) -> list:
     print("...Progress: 100")
 
     return files_backed_up
+
+
+def file_on_created(event):
+    print(f"{event.src_path} created.")
+
+
+def file_on_deleted(event):
+    print(f"{event.src_path} deleted.")
+
+
+def file_on_modified(event):
+    print(f"{event.src_path} modified.")
+
+
+def file_on_moved(event):
+    print(f"{event.src_path} moved to {event.dest_path}")
+
+
+def setup_filesystem_watchdog(path):
+    patterns = "*"
+    ignore_patterns = ""
+    ignore_directories = False
+    case_sensitive = True
+
+    fs_event_handler = PatternMatchingEventHandler(
+        patterns, ignore_patterns, ignore_directories, case_sensitive
+    )
+
+    fs_event_handler.on_created = file_on_created
+    fs_event_handler.on_deleted = file_on_deleted
+    fs_event_handler.on_modified = file_on_modified
+    fs_event_handler.on_moved = file_on_moved
+
+    fs_observer = Observer()
+    fs_observer.schedule(fs_event_handler, path, recursive=True)
+
+    return fs_observer
 
 
 if __name__ == "__main__":
