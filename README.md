@@ -12,6 +12,8 @@ I wanted to sync my dev folder but exclude certain files and folders (node_modul
 
 Here is the initial doc I created to identify and solve this problem [Goals](Goals.md)
 
+I also wanted to code something useful for myself instead of cheesy toy apps, while still getting practice in.
+
 ### Why not just use a repository for your code?
 
 1. Some of my code and resources I don't want to put up into a repo..
