@@ -9,6 +9,7 @@ import os  # For path stuff
 import sys  # For args
 import shutil  # For file copy / overwrite / metadata
 import json  # For parsing config
+from time import time  # Getting operation time
 
 # TODO - Allow for full commandline only operation as a second option (instead of loading from a config file)
 
@@ -163,15 +164,20 @@ def backup_files(config: list, src_paths: list, dest_paths: list) -> list:
 
     # Progress tracker
     percent_complete = 0
-    percent_step = 5
+    percent_step = 10
+    prev_percent = 0
+
+    print("...Progress: 0")
 
     files_backed_up = []
 
     for i, full_path in enumerate(dest_paths):
-        percent_complete = (i / len(src_paths)) * 100
+        percent_complete = int((i / len(src_paths)) * 100)
 
-        if int(percent_complete) % percent_step == 0:
-            print(f"...Progress: {percent_complete}")
+        if percent_complete != prev_percent and percent_complete % percent_step == 0:
+            print(f"...Progress: {round(percent_complete, 2)}")
+
+        prev_percent = percent_complete
 
         if os.path.exists(os.path.dirname(full_path)):
             # Path exists, but does the file?
@@ -201,6 +207,8 @@ def backup_files(config: list, src_paths: list, dest_paths: list) -> list:
             shutil.copy2(src_paths[i], full_path)
             files_backed_up.append(full_path)
 
+    print("...Progress: 100")
+
     return files_backed_up
 
 
@@ -213,6 +221,8 @@ if __name__ == "__main__":
         print(f"{key}: {config[key]}")
     print("")
 
+    start_time = time()
+
     src_paths = build_backup_src_paths(config)
 
     dest_paths = build_backup_dest_paths(config, src_paths)
@@ -221,5 +231,5 @@ if __name__ == "__main__":
 
     backed_up_files = backup_files(config, src_paths, dest_paths)
 
-    print("Backup complete!\n")
+    print(f"Backup completed in {round(time() - start_time, 6)} seconds.\n")
     print(f"Files backed up: {len(backed_up_files)}")
