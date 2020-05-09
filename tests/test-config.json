@@ -1,0 +1,7 @@
+{
+    "folder-exclusions": ["node_modules", "__pycache__"],
+    "filename-exclusions": ["exclude-me"],
+    "filetype-exclusions": [".log", ".lock"],
+    "backup-src": "tests/test-backup-src",
+    "backup-dest": "tests/test-backup-dest"
+}
