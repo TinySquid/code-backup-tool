@@ -27,3 +27,4 @@ I also wanted to code something useful for myself instead of cheesy toy apps, wh
 1. Convert into a service so it runs on startup and watches the filesystem for changes to backup.
 2. Find ways to optimize - One issue being that currently it creates a duplicate list from the source paths and only changes the parent dir to the backup-dest dir... Literally doubling the memory usage. I can remove that and just have it convert on the fly instead.
 3. Clean up the code.
+4. Allow for full commandline only operation as a second option (instead of loading from a config file)
