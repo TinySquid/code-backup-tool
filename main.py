@@ -9,14 +9,14 @@ import os  # For path stuff
 import sys  # For args
 import shutil  # For file copy / overwrite / metadata
 import json  # For parsing config
+from datetime import datetime  # To get timestamp for log file
 from time import time, sleep  # Getting operation time, sleep to reduce cpu usage
 
 # File system watchdog module
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 
-# Global config object
-config = {}
+import logging
 
 
 def print_usage(error_message=None):
@@ -33,22 +33,32 @@ def print_usage(error_message=None):
     exit()
 
 
-def load_config(file: str) -> list:
+def load_config(file: str):
     """
-    Loads and parses a provided config file 
+    Attempts to load and parse a provided config file.
+    Returns config dict or None if error encountered.
     """
-    global config
+    global logging
+
+    logging.debug(f"Loading config {file}...")
+
+    config = {}
 
     if os.path.exists(file):
         with open(file) as config_file:
-            # Returning from inside a "with" statement will close file
-            # automatically still.
             try:
                 config = json.load(config_file)
+
+                logging.debug("Config loaded.")
+
             except json.JSONDecodeError:
-                print_usage("Not a valid JSON file")
+                logging.error(f"Config file {file} not a valid JSON file.")
+                return None
     else:
-        print_usage(f"Config file {file} does not exist.")
+        logging.error(f"Config file {file} not found.")
+        return None
+
+    return config
 
 
 def parse_args(args: list) -> list:
@@ -156,7 +166,7 @@ def build_backup_dest_paths(config: list, src_paths: list) -> list:
     return dest_paths
 
 
-def backup_files(config: list) -> list:
+def backup_all_files(config: list) -> list:
     """
     Backs up files from backup_src to backup_dest, creating
     directories and intermediate directiories as needed. If 
@@ -218,34 +228,69 @@ def backup_files(config: list) -> list:
     return files_backed_up
 
 
-# TODO Refactor
-# Replace / Modify / Delete only the files specified in the event
-# Instead of currently rebuilding all the backup paths
+def remove_file(path: str) -> bool:
+    """
+    Deletes a file specified by the path. Returns True if
+    successful, False otherwise.
+    """
+    # Check if path is to a file or directory
+    is_path = os.path.isdir(path)
+
+    if is_path:
+        # Remove dir and contents
+        try:
+            shutil.rmtree(path, False)
+        except:
+            pass
+    else:
+        pass
+        # Remove file
+
+
 def file_on_created(event):
+    """
+    This function is run when a new file is created
+    """
     print(f"{event.src_path} created.")
 
     global config
 
-    backup_files(config)
-
 
 def file_on_deleted(event):
+    """
+    This function is run when a file is deleted
+    """
     print(f"{event.src_path} deleted.")
+
+    global config
 
 
 def file_on_modified(event):
+    """
+    This function is run when a file is modified
+    """
     print(f"{event.src_path} modified.")
 
     global config
 
-    backup_files(config)
-
 
 def file_on_moved(event):
+    """
+    This function is run when a file is moved
+    """
     print(f"{event.src_path} moved to {event.dest_path}")
 
+    global config
 
-def setup_filesystem_watchdog(path):
+
+def setup_filesystem_watchdog(path: str) -> Observer:
+    """
+    Initializes a filesystem watchdog (sets up file system event handler) and returns an observer object
+    """
+    global logging
+
+    logging.debug("Initializing fs watchdog...")
+
     patterns = "*"
     ignore_patterns = ""
     ignore_directories = False
@@ -263,32 +308,70 @@ def setup_filesystem_watchdog(path):
     fs_observer = Observer()
     fs_observer.schedule(fs_event_handler, path, recursive=True)
 
+    logging.debug("fs watchdog created.")
+
     return fs_observer
 
 
+# Global config object
+config = {}
+default_config_file = "tests/test-config.json"
+
+#  Setup logging
+log_file_name = datetime.now().strftime("logs/code-backup_%Y-%m-%d_%H-%M.log")
+logging.basicConfig(
+    filename=log_file_name,
+    filemode="w",
+    level=logging.DEBUG,
+    format="[%(asctime)s][%(levelname)s] %(message)s",
+    datefmt="%I:%M:%S %p",
+)
+
+# Log unhandled exceptions to file
+def handle_unhandled_exception(exc_type, exc_value, exc_traceback):
+    """Handler for unhandled exceptions that will write to the logs"""
+    logging.critical(
+        "Unhandled exception", exc_info=(exc_type, exc_value, exc_traceback)
+    )
+
+
+# Assign exception handler
+sys.excepthook = handle_unhandled_exception
+
+logging.debug(f"Backup-Tool Started.")
+
 if __name__ == "__main__":
+    config = load_config(default_config_file)
+
+    if config is None:
+        exit(1)
+
     # Parse args and return loaded config
-    parse_args(sys.argv)
+    # parse_args(sys.argv)
 
     # print("Running with config:\n")
     # for key in config:
     #     print(f"{key}: {config[key]}")
     # print("")
 
-    start_time = time()
+    # start_time = time()
 
-    print("Beginning initial backup...")
+    # print("Beginning initial backup...")
 
-    backed_up_files = backup_files(config)
+    # backed_up_files = backup_all_files(config)
 
-    print(f"Backup completed in {round(time() - start_time, 6)} seconds.\n")
-    print(f"Files backed up: {len(backed_up_files)}")
+    # print(f"Backup completed in {round(time() - start_time, 6)} seconds.\n")
+    # print(f"Files backed up: {len(backed_up_files)}")
 
     # Watch backup-src dir for changes
     fs_observer = setup_filesystem_watchdog(config["backup-src"])
 
     fs_observer.start()
 
+    logging.debug("fs observer thread started.")
+
     # Check every n seconds
     while True:
         sleep(3)
+
+    logging.debug("Backup-Tool Exited")
