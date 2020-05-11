@@ -247,6 +247,15 @@ def file_on_deleted(event):
     """
     print(f"{event.src_path} deleted.")
 
+    path_to_delete = os.path.join(
+        config["backup-dest"], os.path.relpath(event.src_path, config["backup-src"])
+    )
+
+    if remove_file(path_to_delete):
+        logging.debug(f"Deleted {path_to_delete}.")
+    else:
+        logging.error(f"Unable to delete {path_to_delete}")
+
 
 def file_on_modified(event):
     """
