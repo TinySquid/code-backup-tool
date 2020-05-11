@@ -1,12 +1,12 @@
 """
-Running this is simple:
-usage: python backup.py [config.json]
-
-Obviously you need python.
+This is the service version of the tool.
+It is meant to run on startup and will watch
+the provided dir and its subdirs for changes
+& sync to backup-dest path.
 """
 
 import os  # For path stuff
-import sys  # For args
+import sys  # To override exception hook
 import shutil  # For file copy / overwrite / metadata
 import json  # For parsing config
 from datetime import datetime  # To get timestamp for log file
@@ -16,21 +16,8 @@ from time import time, sleep  # Getting operation time, sleep to reduce cpu usag
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 
+# Logger
 import logging
-
-
-def print_usage(error_message=None):
-    """
-    Prints optional error message and usage statement
-    """
-    if error_message:
-        print(error_message)
-
-    print(
-        "usage: python main.py [help] [config_file.json]\n[help]: Prints usage statement\n[config_file]: Path to custom config"
-    )
-    # LEAVE!!!
-    exit()
 
 
 def load_config(file: str):
@@ -38,8 +25,6 @@ def load_config(file: str):
     Attempts to load and parse a provided config file.
     Returns config dict or None if error encountered.
     """
-    global logging
-
     logging.debug(f"Loading config {file}...")
 
     config = {}
@@ -253,16 +238,12 @@ def file_on_created(event):
     """
     print(f"{event.src_path} created.")
 
-    global config
-
 
 def file_on_deleted(event):
     """
     This function is run when a file is deleted
     """
     print(f"{event.src_path} deleted.")
-
-    global config
 
 
 def file_on_modified(event):
@@ -271,8 +252,6 @@ def file_on_modified(event):
     """
     print(f"{event.src_path} modified.")
 
-    global config
-
 
 def file_on_moved(event):
     """
@@ -280,14 +259,11 @@ def file_on_moved(event):
     """
     print(f"{event.src_path} moved to {event.dest_path}")
 
-    global config
-
 
 def setup_filesystem_watchdog(path: str) -> Observer:
     """
     Initializes a filesystem watchdog (sets up file system event handler) and returns an observer object
     """
-    global logging
 
     logging.debug("Initializing fs watchdog...")
 
