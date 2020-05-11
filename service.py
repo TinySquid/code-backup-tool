@@ -218,18 +218,20 @@ def remove_file(path: str) -> bool:
     Deletes a file specified by the path. Returns True if
     successful, False otherwise.
     """
-    # Check if path is to a file or directory
-    is_path = os.path.isdir(path)
 
-    if is_path:
+    if os.path.isdir(path):
         # Remove dir and contents
         try:
             shutil.rmtree(path, False)
-        except:
-            pass
+        except OSError as error:
+            logging.critical(error)
+
     else:
-        pass
         # Remove file
+        try:
+            os.remove(path)
+        except OSError as error:
+            logging.critical(error)
 
 
 def file_on_created(event):
