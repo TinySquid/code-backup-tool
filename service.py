@@ -311,11 +311,12 @@ default_config_file = "tests/test-config.json"
 #  Setup logging
 log_file_name = datetime.now().strftime("logs/code-backup_%Y-%m-%d_%H-%M.log")
 logging.basicConfig(
-    filename=log_file_name,
-    filemode="w",
+    # filename=log_file_name,
+    # filemode="w",
     level=logging.DEBUG,
     format="[%(asctime)s][%(levelname)s] %(message)s",
     datefmt="%I:%M:%S %p",
+    handlers=[logging.FileHandler(log_file_name), logging.StreamHandler(sys.stdout)],
 )
 
 # Log unhandled exceptions to file
