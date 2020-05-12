@@ -213,25 +213,27 @@ def backup_all_files(config: list) -> list:
     return files_backed_up
 
 
-def remove_file(path: str) -> bool:
+def delete_item(path: str) -> bool:
     """
-    Deletes a file specified by the path. Returns True if
+    Deletes a file / dir specified by the path. Returns True if
     successful, False otherwise.
     """
 
-    if os.path.isdir(path):
-        # Remove dir and contents
-        try:
-            shutil.rmtree(path, False)
-        except OSError as error:
-            logging.critical(error)
+    try:
 
-    else:
-        # Remove file
-        try:
+        if os.path.isdir(path):
+            # Remove dir and contents
+            shutil.rmtree(path, False)
+
+        else:
+            # Remove file
             os.remove(path)
-        except OSError as error:
-            logging.critical(error)
+
+        return True
+    except OSError as error:
+        logging.critical(error)
+
+    return False
 
 
 def file_on_created(event):
@@ -243,18 +245,20 @@ def file_on_created(event):
 
 def file_on_deleted(event):
     """
-    This function is run when a file is deleted
+    File / dir delete event handler. Removes file / dir from backup
     """
-    print(f"{event.src_path} deleted.")
+    logging.debug(f"{event.src_path} deleted by external process.")
 
-    path_to_delete = os.path.join(
+    # Get path to file / dir in backup
+    delete_path = os.path.join(
         config["backup-dest"], os.path.relpath(event.src_path, config["backup-src"])
     )
 
-    if remove_file(path_to_delete):
-        logging.debug(f"Deleted {path_to_delete}.")
+    # Delete
+    if delete_item(delete_path):
+        logging.debug(f"Deleted {delete_path} from backup.")
     else:
-        logging.error(f"Unable to delete {path_to_delete}")
+        logging.error(f"Unable to delete {event.src_path} from backup")
 
 
 def file_on_modified(event):
