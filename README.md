@@ -22,8 +22,8 @@ I also wanted to code something useful for myself instead of cheesy toy apps, wh
 1. Some of my code and resources I don't want to put up into a repo..
 2. Not all of it is code either so it feels messy to have that in a repo.
 3. If I make changes somewhere and don't commit them.. They won't be updated obviously.
-4. Too lazy to git pull all the time if I did use a repo
-5. I don't even think you can have repos inside repos...
+4. Repo size limit is around 1GB.
+5. I don't even think you can have repos inside repos.
 
 # Future plans
 
