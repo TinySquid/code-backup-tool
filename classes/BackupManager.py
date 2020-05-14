@@ -30,6 +30,7 @@ import logging
 class BackupManager:
     def __init__(self):
         self.config = None
+        self.fs_observer = None
 
         #  Setup logging
         log_file_name = datetime.now().strftime("logs/code-backup_%Y-%m-%d_%H-%M.log")
@@ -263,14 +264,20 @@ class BackupManager:
         fs_event_handler.on_modified = self.file_on_modified
         fs_event_handler.on_moved = self.file_on_moved
 
-        fs_observer = Observer()
-        fs_observer.schedule(
+        self.fs_observer = Observer()
+        self.fs_observer.schedule(
             fs_event_handler, self.config["backup-src"], recursive=True
         )
 
         logging.debug("fs watchdog created.")
 
-        return fs_observer
+    def start_fs_watchdog(self):
+        self.fs_observer.start()
+        logging.debug("fs watchdog running.")
+
+    def stop_fs_watchdog(self):
+        self.fs_observer.stop()
+        logging.debug("fs watchdog stopped.")
 
     def file_on_created(self, event):
         """

@@ -8,44 +8,33 @@ the provided dir and its subdirs for changes
 # Logger
 import logging
 
+from time import sleep  # Reduce poll rate to keep CPU usage down
+
 from classes.BackupManager import BackupManager
 
 if __name__ == "__main__":
+    # Get manager instance
     backup_mgr = BackupManager()
-    default_config_file = "tests/test-config.json"
 
+    # *DEBUG*
+    default_config_file = "tests/test-config.json"
+    # * ^
     backup_mgr.load_config(default_config_file)
 
-    paths = backup_mgr.backup_all_files()
+    # Traverse all files / dirs in backup-src and backup
+    # to backup-dest
+    # backup_list = backup_mgr.backup_all_files()
 
-    logging.debug(paths)
+    # logging.debug(backup_list)
 
-    # Parse args and return loaded config
-    # parse_args(sys.argv)
+    # init fs watchdog and run observer
+    backup_mgr.setup_filesystem_watchdog()
+    backup_mgr.start_fs_watchdog()
 
-    # print("Running with config:\n")
-    # for key in config:
-    #     print(f"{key}: {config[key]}")
-    # print("")
-
-    # start_time = time()
-
-    # print("Beginning initial backup...")
-
-    # backed_up_files = backup_all_files(config)
-
-    # print(f"Backup completed in {round(time() - start_time, 6)} seconds.\n")
-    # print(f"Files backed up: {len(backed_up_files)}")
-
-    # Watch backup-src dir for changes
-    # fs_observer = setup_filesystem_watchdog(config["backup-src"])
-
-    # fs_observer.start()
-
-    # logging.debug("fs observer thread started.")
-
-    # # Check every n seconds
-    # while True:
-    #     sleep(3)
-
-    logging.debug("Backup service exited")
+    # Check every n seconds to reduce CPU usage
+    try:
+        while True:
+            sleep(3)
+    except KeyboardInterrupt as e:
+        logging.debug("Backup service stopped via keyboard interrupt")
+        exit(0)
