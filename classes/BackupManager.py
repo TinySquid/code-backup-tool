@@ -174,7 +174,7 @@ class BackupManager:
         percent_step = 10
         prev_percent = 0
 
-        print("...Progress: 0")
+        logging.debug("...Progress: 0")
 
         files_backed_up = []
 
@@ -185,7 +185,7 @@ class BackupManager:
                 percent_complete != prev_percent
                 and percent_complete % percent_step == 0
             ):
-                print(f"...Progress: {round(percent_complete, 2)}")
+                logging.debug(f"...Progress: {round(percent_complete, 2)}")
 
             prev_percent = percent_complete
 
@@ -211,13 +211,13 @@ class BackupManager:
                 try:
                     os.makedirs(path)
                 except FileExistsError:
-                    print("Path already exists")
+                    logging.debug("Path already exists")
 
                 # Copy over file
                 shutil.copy2(src_paths[i], full_path)
                 files_backed_up.append(full_path)
 
-        print("...Progress: 100")
+        logging.debug("...Progress: 100")
 
         return files_backed_up
 
@@ -283,7 +283,19 @@ class BackupManager:
         """
         This function is run when a new file is created
         """
-        print(f"{event.src_path} created.")
+        logging.debug(f"{event.src_path} created.")
+
+        dest_path = os.path.join(
+            self.config["backup-dest"],
+            os.path.relpath(event.src_path, self.config["backup-src"]),
+        )
+
+        if os.path.isdir(event.src_path):
+            logging.debug("Item is a directory")
+            shutil.copytree(event.src_path, dest_path)
+        else:
+            logging.debug("Item is a file")
+            shutil.copy2(event.src_path, dest_path)
 
     def file_on_deleted(self, event):
         """
@@ -307,10 +319,29 @@ class BackupManager:
         """
         This function is run when a file is modified
         """
-        print(f"{event.src_path} modified.")
+        # logging.debug(f"{event.src_path} modified.")
+        logging.debug(f"{event}")
+
+        dest_path = os.path.join(
+            self.config["backup-dest"],
+            os.path.relpath(event.src_path, self.config["backup-src"]),
+        )
+        if os.path.isfile(event.src_path):
+            shutil.copy2(event.src_path, dest_path)
 
     def file_on_moved(self, event):
         """
         This function is run when a file is moved
         """
-        print(f"{event.src_path} moved to {event.dest_path}")
+        logging.debug(f"{event.src_path} moved to {event.dest_path}")
+        dest_orig_path = os.path.join(
+            self.config["backup-dest"],
+            os.path.relpath(event.src_path, self.config["backup-src"]),
+        )
+
+        dest_rename = os.path.join(
+            self.config["backup-dest"],
+            os.path.relpath(event.dest_path, self.config["backup-src"]),
+        )
+
+        os.rename(dest_orig_path, dest_rename)
