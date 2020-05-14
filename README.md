@@ -1,3 +1,6 @@
+### Note
+Not ready to be used yet (under heavy development still)
+
 # What
 
 This is a tool I wrote in Python meant to backup source code / docs from one directory to another, while applying exclusion filters.
