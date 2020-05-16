@@ -32,6 +32,14 @@ class BackupManager:
         self.config = None
         self.fs_observer = None
 
+        self.folder_exclusions = None
+        self.filename_exclusions = None
+        self.filetype_exclusions = None
+
+        self.enable_folder_exclusions = False
+        self.enable_filename_exclusions = False
+        self.enable_filetype_exclusions = False
+
         #  Setup logging
         log_file_name = datetime.now().strftime("logs/code-backup_%Y-%m-%d_%H-%M.log")
         logging.basicConfig(
@@ -54,8 +62,6 @@ class BackupManager:
         # Assign exception handler
         sys.excepthook = handle_unhandled_exception
 
-        logging.debug(f"BackupManager created.")
-
     def load_config(self, file):
         """
         Attempts to load and parse a provided config file.
@@ -65,7 +71,11 @@ class BackupManager:
         if os.path.exists(file):
             with open(file) as config_file:
                 try:
+                    # Read file as JSON & store into self.config (dict)
                     self.config = json.load(config_file)
+
+                    # Validate required keys
+                    self.validate_config()
 
                     logging.debug("Config loaded.")
 
@@ -73,25 +83,42 @@ class BackupManager:
                     logging.critical(f"Config file {file} not a valid JSON file.")
                     exit(1)
         else:
+            # Can't continue without the config
             logging.critical(f"Config file {file} not found.")
             exit(1)
+
+    def validate_config(self):
+        """
+        Pull in data from config object, set exclusion bools.
+        """
+
+        try:
+
+            self.backup_src_path = self.config["backup-src"]
+            self.backup_dest_path = self.config["backup-dest"]
+
+            self.folder_exclusions = self.config["folder-exclusions"]
+            self.filename_exclusions = self.config["filename-exclusions"]
+            self.filetype_exclusions = self.config["filetype-exclusions"]
+
+        except KeyError as key:
+            logging.critical(f"Required config key {key} not found.")
+            exit(1)
+
+        self.enable_folder_exclusions = (
+            True if len(self.folder_exclusions) > 0 else False
+        )
+        self.enable_filename_exclusions = (
+            True if len(self.filename_exclusions) > 0 else False
+        )
+        self.enable_filetype_exclusions = (
+            True if len(self.filetype_exclusions) > 0 else False
+        )
 
     def build_backup_src_paths(self):
         """
         Returns a list of filtered full paths from the backup-src directory and its subdirectories
         """
-
-        # Backup from path
-        backup_src_path = self.config["backup-src"]
-
-        folder_exclusions = self.config["folder-exclusions"]
-        filetype_exclusions = self.config["filetype-exclusions"]
-        filename_exclusions = self.config["filename-exclusions"]
-
-        # Bools to toggle exclusion functionality
-        enable_folder_exclusions = True if len(folder_exclusions) > 0 else False
-        enable_filename_exclusions = True if len(filename_exclusions) > 0 else False
-        enable_filetype_exclusions = True if len(filetype_exclusions) > 0 else False
 
         """
         In order to not have a ton of if blocks for checking if files meet
@@ -102,19 +129,19 @@ class BackupManager:
         """
         inclusion_criteria = 0
 
-        if enable_filename_exclusions > 0:
+        if self.enable_filename_exclusions > 0:
             inclusion_criteria += 1
-        if enable_filetype_exclusions > 0:
+        if self.enable_filetype_exclusions > 0:
             inclusion_criteria += 2
 
         # List object to hold full paths that meet inclusion_criteria above
         src_paths = []
 
         # Traverse all files and folders that pass the exclusion checks
-        for path, subdirs, files in os.walk(backup_src_path, topdown=True):
+        for path, subdirs, files in os.walk(self.backup_src_path, topdown=True):
             # * Don't search subdir if in exclusion list (in-place)
-            if enable_folder_exclusions:
-                subdirs[:] = [d for d in subdirs if d not in folder_exclusions]
+            if self.enable_folder_exclusions:
+                subdirs[:] = [d for d in subdirs if d not in self.folder_exclusions]
 
             # Iterate over all files in this directory
             for file in files:
@@ -124,13 +151,13 @@ class BackupManager:
                 checks_passed = 0
 
                 # * Filename filter
-                if enable_filename_exclusions:
-                    if file_name not in filename_exclusions:
+                if self.enable_filename_exclusions:
+                    if file_name not in self.filename_exclusions:
                         checks_passed += 1
 
                 # * Filetype filter
-                if enable_filetype_exclusions:
-                    if file_type not in filetype_exclusions:
+                if self.enable_filetype_exclusions:
+                    if file_type not in self.filetype_exclusions:
                         checks_passed += 2
 
                 # * Do we pass criteria defined in the config?
@@ -145,14 +172,13 @@ class BackupManager:
         from backup_src to backup_dest
         """
 
-        backup_src_path = self.config["backup-src"]
-        backup_dest_path = self.config["backup-dest"]
-
         dest_paths = []
 
         for path in src_paths:
             dest_paths.append(
-                os.path.join(backup_dest_path, os.path.relpath(path, backup_src_path))
+                os.path.join(
+                    self.backup_dest_path, os.path.relpath(path, self.backup_src_path)
+                )
             )
 
         return dest_paths
@@ -174,6 +200,7 @@ class BackupManager:
         percent_step = 10
         prev_percent = 0
 
+        logging.debug("Starting full backup...")
         logging.debug("...Progress: 0")
 
         files_backed_up = []
@@ -181,6 +208,7 @@ class BackupManager:
         for i, full_path in enumerate(dest_paths):
             percent_complete = int((i / len(src_paths)) * 100)
 
+            # Can we log our progress?
             if (
                 percent_complete != prev_percent
                 and percent_complete % percent_step == 0
@@ -250,6 +278,7 @@ class BackupManager:
 
         logging.debug("Initializing fs watchdog...")
 
+        # Unfortunately you can't ignore sub dirs with watchdog
         patterns = "*"
         ignore_patterns = ""
         ignore_directories = False
@@ -266,7 +295,7 @@ class BackupManager:
 
         self.fs_observer = Observer()
         self.fs_observer.schedule(
-            fs_event_handler, self.config["backup-src"], recursive=True
+            fs_event_handler, self.backup_src_path, recursive=True
         )
 
         logging.debug("fs watchdog created.")
@@ -285,9 +314,12 @@ class BackupManager:
         """
         logging.debug(f"{event.src_path} created.")
 
+        if "node_modules" in str(event.src_path):
+            logging.debug(f"{event.src_path} excluded by filter.")
+
         dest_path = os.path.join(
-            self.config["backup-dest"],
-            os.path.relpath(event.src_path, self.config["backup-src"]),
+            self.backup_dest_path,
+            os.path.relpath(event.src_path, self.backup_src_path),
         )
 
         if os.path.isdir(event.src_path):
@@ -303,10 +335,13 @@ class BackupManager:
         """
         logging.debug(f"{event.src_path} deleted by external process.")
 
+        if "node_modules" in str(event.src_path):
+            logging.debug(f"{event.src_path} excluded by filter.")
+
         # Get path to file / dir in backup
         delete_path = os.path.join(
-            self.config["backup-dest"],
-            os.path.relpath(event.src_path, self.config["backup-src"]),
+            self.backup_dest_path,
+            os.path.relpath(event.src_path, self.backup_src_path),
         )
 
         # Delete
@@ -322,9 +357,12 @@ class BackupManager:
         # logging.debug(f"{event.src_path} modified.")
         logging.debug(f"{event}")
 
+        if "node_modules" in str(event.src_path):
+            logging.debug(f"{event.src_path} excluded by filter.")
+
         dest_path = os.path.join(
-            self.config["backup-dest"],
-            os.path.relpath(event.src_path, self.config["backup-src"]),
+            self.backup_dest_path,
+            os.path.relpath(event.src_path, self.backup_src_path),
         )
         if os.path.isfile(event.src_path):
             shutil.copy2(event.src_path, dest_path)
@@ -334,14 +372,18 @@ class BackupManager:
         This function is run when a file is moved
         """
         logging.debug(f"{event.src_path} moved to {event.dest_path}")
+
+        if "node_modules" in str(event.src_path):
+            logging.debug(f"{event.src_path} excluded by filter.")
+
         dest_orig_path = os.path.join(
-            self.config["backup-dest"],
-            os.path.relpath(event.src_path, self.config["backup-src"]),
+            self.backup_dest_path,
+            os.path.relpath(event.src_path, self.backup_src_path),
         )
 
         dest_rename = os.path.join(
-            self.config["backup-dest"],
-            os.path.relpath(event.dest_path, self.config["backup-src"]),
+            self.backup_dest_path,
+            os.path.relpath(event.dest_path, self.backup_src_path),
         )
 
         os.rename(dest_orig_path, dest_rename)
