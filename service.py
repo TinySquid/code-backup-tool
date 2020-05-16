@@ -23,9 +23,9 @@ if __name__ == "__main__":
 
     # Traverse all files / dirs in backup-src and backup
     # to backup-dest
-    # backup_list = backup_mgr.backup_all_files()
+    backup_list = backup_mgr.backup_all_files()
 
-    # logging.debug(backup_list)
+    logging.debug(f"Backed up {len(backup_list)} files/folders.")
 
     # init fs watchdog and run observer
     backup_mgr.setup_filesystem_watchdog()
@@ -36,5 +36,6 @@ if __name__ == "__main__":
         while True:
             sleep(3)
     except KeyboardInterrupt as e:
+        backup_mgr.stop_fs_watchdog()
         logging.debug("Backup service stopped via keyboard interrupt")
         exit(0)
